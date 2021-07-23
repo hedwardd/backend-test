@@ -5,7 +5,9 @@
 	"author": "Heath Daniel",
 	"license": "MIT",
 	"scripts": {
-		"start": "nodemon index.js"
+		"start": "nodemon index.js",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix"
 	},
 	"dependencies": {
 		"cookie-parser": "~1.4.4",
@@ -13,6 +15,9 @@
 		"morgan": "~1.9.1"
 	},
 	"devDependencies": {
+		"eslint": "^7.31.0",
+		"eslint-config-airbnb-base": "^14.2.1",
+		"eslint-plugin-import": "^2.23.4",
 		"nodemon": "^2.0.12"
 	}
 }
