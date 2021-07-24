@@ -5,7 +5,7 @@ const { UserModel } = require('../models');
 const createUser = (req, res) => {
   // TODO: Add Validation
   const {
-    name, email, password, role,
+    name, email, password, permission,
   } = req.body;
 
   // TODO: Check for existing user first
@@ -17,7 +17,7 @@ const createUser = (req, res) => {
     } else {
       // TODO: Hash and salt password
       const newUser = new UserModel({
-        name, email, password: hashedPassword, role,
+        name, email, password: hashedPassword, permission,
       });
 
       newUser.save((err) => {
@@ -35,10 +35,10 @@ const createUser = (req, res) => {
 const getAllUsers = (req, res) => {
   // TODO: Add filtering by params
   const userQuery = {};
-  const { name, email, role } = req.query;
+  const { name, email, permission } = req.query;
   if (name) { userQuery.name = name; }
   if (email) { userQuery.email = email; }
-  if (role) { userQuery.role = role; }
+  if (permission) { userQuery.permission = permission; }
 
   // TODO: Filter passwords, IDs, etc. from response
   UserModel.find(userQuery, '-__v -password', (err, users) => {
@@ -56,12 +56,12 @@ const updateUser = (req, res) => {
   // TODO: If updating email, include new email
   // TODO: Add Validation
   const {
-    name, email, password, role,
+    name, email, password, permission,
   } = req.body;
 
   UserModel.findOneAndUpdate(
     { email },
-    { name, password, role },
+    { name, password, permission },
     (err) => {
       if (err) {
         console.error(err);
