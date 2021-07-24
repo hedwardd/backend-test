@@ -11,7 +11,8 @@ const PERMISSION_TYPES = [
 
 const UserSchema = new Schema({
   name: {
-    type: String, required: true,
+    type: String,
+    required: true,
   },
   email: {
     type: String,
@@ -19,7 +20,8 @@ const UserSchema = new Schema({
     unique: true,
   },
   password: {
-    type: String, required: true,
+    type: String,
+    required: true,
   },
   permission: {
     type: String,
