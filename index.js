@@ -4,7 +4,10 @@
  * Module dependencies.
  */
 
+require('dotenv').config();
 const http = require('http');
+const mongoose = require('mongoose');
+
 const app = require('./app');
 
 /**
@@ -21,12 +24,26 @@ app.set('port', port);
 const server = http.createServer(app);
 
 /**
- * Listen on provided port, on all network interfaces.
+ * Connect to DB, Listen on provided port, on all network interfaces.
  */
 
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
+const dbOptions = {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useFindAndModify: false,
+};
+
+mongoose.connect(process.env.MONGO_URI,
+  dbOptions,
+  (err) => {
+    if (err) console.error(err);
+    else {
+      // Start the server
+      server.listen(port);
+      server.on('error', onError);
+      server.on('listening', onListening);
+    }
+  });
 
 /**
  * Normalize a port into a number, string, or false.
