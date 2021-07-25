@@ -31,19 +31,30 @@ const createUser = (req, res) => {
 };
 
 const getAllUsers = (req, res) => {
-  // TODO: Add pagination
+  const {
+    _id,
+  } = req.params;
+  console.log(_id);
+  const {
+    name, email, permission, offset, limit,
+  } = req.query;
+
   const userQuery = {};
-  const { name, email, permission } = req.query;
   if (name) { userQuery.name = name; }
   if (email) { userQuery.email = email; }
   if (permission) { userQuery.permission = permission; }
 
-  UserModel.find(userQuery, '-__v -password -_id', (err, users) => {
+  // TODO: Add pagination
+  const queryOptions = { limit: 100 };
+  if (offset) { queryOptions.skip = parseInt(offset, 10); }
+  if (limit) { queryOptions.limit = parseInt(limit, 10); }
+
+  UserModel.find(userQuery, '-__v -password -_id', queryOptions, (err, users) => {
     if (err) {
       console.error(err);
       res.json({ message: 'Error searching for users.' });
     } else {
-      res.json({ users });
+      res.json({ data: users });
     }
   });
 };
