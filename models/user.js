@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
 
-const PERMISSION_TYPES = [
+const ROLE_TYPES = [
   'UNPRIVILEGED',
   'CREATOR',
   'MODERATOR',
@@ -23,13 +23,13 @@ const UserSchema = new Schema({
     type: String,
     required: true,
   },
-  permission: {
+  role: {
     type: String,
-    enum: PERMISSION_TYPES,
+    enum: ROLE_TYPES,
     required: true,
   },
 });
 
 const UserModel = mongoose.model('User', UserSchema);
 
-module.exports = UserModel;
+module.exports = { UserModel };
