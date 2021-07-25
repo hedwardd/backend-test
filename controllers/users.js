@@ -3,18 +3,17 @@ const bcrypt = require('bcrypt');
 const { UserModel } = require('../models/user');
 const { isValidEmail, isValidPassword } = require('../utils');
 
-const createUser = (req, res) => {
+const createUser = async (req, res) => {
   // TODO: Add Validation
 
   const {
     name, email, password, role,
   } = req.body;
 
-  if (!name || !email || !password || !role) {
+  if (!(name && email && password && role)) {
     res.status(400).json({ error: 'Missing required user information.' });
     return;
   }
-
   if (!isValidEmail(email)) {
     res.status(400).json({ error: 'Invalid email address.' });
     return;
@@ -24,34 +23,22 @@ const createUser = (req, res) => {
     return;
   }
 
-  bcrypt.hash(password, 10, (bcryptErr, hashedPassword) => {
-    if (bcryptErr) {
-      console.error(bcryptErr);
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = new UserModel({
+    name, email, password: hashedPassword, role,
+  });
 
-      res.json({ message: 'Error creating new user.' });
+  newUser.save((err) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Error creating new user.' });
     } else {
-      const newUser = new UserModel({
-        name, email, password: hashedPassword, role,
-      });
-
-      newUser.save((err) => {
-        if (err) {
-          console.error(err);
-          res.json({ message: 'Error creating new user.' });
-        } else {
-          res.json({ message: 'User successfully created.' });
-        }
-      });
+      res.json({ message: 'User successfully created.' });
     }
   });
 };
 
-// TODO: Add param handler
-
 const getAllUsers = (req, res) => {
-  const {
-    _id,
-  } = req.params;
   const {
     name, email, role, offset, limit,
   } = req.query;
@@ -61,38 +48,63 @@ const getAllUsers = (req, res) => {
   if (email) { userQuery.email = email; }
   if (role) { userQuery.role = role; }
 
-  // TODO: Add pagination
   const queryOptions = { limit: 100 };
-  if (offset) { queryOptions.skip = parseInt(offset, 10); }
-  if (limit) { queryOptions.limit = parseInt(limit, 10); }
+  if (offset) {
+    queryOptions.skip = parseInt(offset, 10);
+    if (Number.isNaN(queryOptions.skip)) {
+      res.status(400).json({ error: 'Invalid offset.' });
+      return;
+    }
+  }
+  if (limit) {
+    queryOptions.limit = parseInt(limit, 10);
+    if (Number.isNaN(queryOptions.limit)) {
+      res.status(400).json({ error: 'Invalid limit.' });
+      return;
+    }
+  }
 
   UserModel.find(userQuery, '-__v -password', queryOptions, (err, users) => {
     if (err) {
       console.error(err);
-      res.json({ message: 'Error searching for users.' });
+      res.status(500).json({ message: 'Error searching for users.' });
     } else {
       res.json({ data: users });
     }
   });
 };
 
-const updateUser = (req, res) => {
-  // TODO: Add Validation
-  // TODO: Add param handler
+const updateUser = async (req, res) => {
   const { id } = req.params;
-  if (!id) {
-    res.status(400).json({ error: 'User ID required.' });
-    return;
-  }
   const {
     name, email, password, role,
   } = req.body;
 
+  if (!id) {
+    res.status(400).json({ error: 'User ID required.' });
+    return;
+  }
+  if (!(name || email || password || role)) {
+    res.status(400).json({ error: 'No field to update.' });
+    return;
+  }
+  if (email && !isValidEmail(email)) {
+    res.status(400).json({ error: 'Invalid email address.' });
+    return;
+  }
+  if (password && !isValidPassword(password)) {
+    res.status(400).json({ error: 'Password must be minimum eight characters, at least one upper case letter, one lower case letter, one number and one special character.' });
+    return;
+  }
+
   const userUpdates = {};
   if (name) { userUpdates.name = name; }
   if (email) { userUpdates.email = email; }
-  if (password) { userUpdates.password = password; }
   if (role) { userUpdates.role = role; }
+  if (password) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    userUpdates.password = hashedPassword;
+  }
 
   UserModel.findByIdAndUpdate(
     id,
@@ -100,7 +112,7 @@ const updateUser = (req, res) => {
     (err) => {
       if (err) {
         console.error(err);
-        res.json({ message: 'Error updating user.' });
+        res.status(500).json({ message: 'Error updating user.' });
       } else {
         res.json({ message: 'User successfully updated.' });
       }
@@ -109,8 +121,6 @@ const updateUser = (req, res) => {
 };
 
 const deleteUser = (req, res) => {
-  // TODO: Add param handler
-  // TODO: Add Validation
   // TODO: Handle no user to delete
   const { id } = req.params;
   if (!id) {
@@ -120,7 +130,7 @@ const deleteUser = (req, res) => {
   UserModel.findByIdAndDelete(id, (err) => {
     if (err) {
       console.error(err);
-      res.json({ message: 'Error deleting user.' });
+      res.status(500).json({ message: 'Error deleting user.' });
     } else {
       res.json({ message: 'User successfully deleted.' });
     }
