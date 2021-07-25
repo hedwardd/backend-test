@@ -1,40 +1,58 @@
 const bcrypt = require('bcrypt');
 
-const { UserModel } = require('../models/user');
+const { UserModel, ROLE_TYPES } = require('../models/user');
 const { isValidEmail, isValidPassword } = require('../utils');
 
-const createUser = async (req, res) => {
-  // TODO: Add Validation
-
+const createUser = (req, res) => {
   const {
     name, email, password, role,
   } = req.body;
 
   if (!(name && email && password && role)) {
-    res.status(400).json({ error: 'Missing required user information.' });
+    res.status(400).json({ error: 'Missing required fields.' });
     return;
   }
+
   if (!isValidEmail(email)) {
     res.status(400).json({ error: 'Invalid email address.' });
     return;
   }
+
   if (!isValidPassword(password)) {
     res.status(400).json({ error: 'Password must be minimum eight characters, at least one upper case letter, one lower case letter, one number and one special character.' });
     return;
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = new UserModel({
-    name, email, password: hashedPassword, role,
-  });
+  if (!ROLE_TYPES.includes(role)) {
+    res.status(400).json({ error: 'Invalid role.' });
+    return;
+  }
 
-  newUser.save((err) => {
-    if (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error creating new user.' });
-    } else {
-      res.json({ message: 'User successfully created.' });
+  UserModel.findOne({ email }, async (errFindingUser, foundUser) => {
+    if (errFindingUser) {
+      console.error(errFindingUser);
+      res.status(500).json({ error: 'There was an error checking for existing user.' });
+      return;
     }
+
+    if (foundUser) {
+      res.status(404).json({ error: 'A user with that email already exists.' });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new UserModel({
+      name, email, password: hashedPassword, role,
+    });
+
+    newUser.save((err) => {
+      if (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error creating new user.' });
+      } else {
+        res.json({ message: 'User successfully created.' });
+      }
+    });
   });
 };
 
@@ -44,11 +62,19 @@ const getAllUsers = (req, res) => {
   } = req.query;
 
   const userQuery = {};
+
   if (name) { userQuery.name = name; }
   if (email) { userQuery.email = email; }
-  if (role) { userQuery.role = role; }
+  if (role) {
+    if (!ROLE_TYPES.includes(role)) {
+      res.status(400).json({ error: 'Invalid role.' });
+      return;
+    }
+    userQuery.role = role;
+  }
 
-  const queryOptions = { limit: 100 };
+  const queryOptions = { limit: 100 }; // Default limit === 100
+
   if (offset) {
     queryOptions.skip = parseInt(offset, 10);
     if (Number.isNaN(queryOptions.skip)) {
@@ -56,6 +82,7 @@ const getAllUsers = (req, res) => {
       return;
     }
   }
+
   if (limit) {
     queryOptions.limit = parseInt(limit, 10);
     if (Number.isNaN(queryOptions.limit)) {
@@ -84,56 +111,87 @@ const updateUser = async (req, res) => {
     res.status(400).json({ error: 'User ID required.' });
     return;
   }
+
   if (!(name || email || password || role)) {
     res.status(400).json({ error: 'No field to update.' });
     return;
   }
+
   if (email && !isValidEmail(email)) {
     res.status(400).json({ error: 'Invalid email address.' });
     return;
   }
+
   if (password && !isValidPassword(password)) {
     res.status(400).json({ error: 'Password must be minimum eight characters, at least one upper case letter, one lower case letter, one number and one special character.' });
     return;
   }
 
-  const userUpdates = {};
-  if (name) { userUpdates.name = name; }
-  if (email) { userUpdates.email = email; }
-  if (role) { userUpdates.role = role; }
-  if (password) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    userUpdates.password = hashedPassword;
+  if (role && !ROLE_TYPES.includes(role)) {
+    res.status(400).json({ error: 'Invalid role.' });
+    return;
   }
 
-  UserModel.findByIdAndUpdate(
-    id,
-    userUpdates,
-    (err) => {
-      if (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error updating user.' });
-      } else {
-        res.json({ message: 'User successfully updated.' });
-      }
-    },
-  );
+  UserModel.findById(id, async (errFindingUser, foundUser) => {
+    if (errFindingUser) {
+      console.error(errFindingUser);
+      res.status(500).json({ message: 'Error searching for user.' });
+      return;
+    } if (!foundUser) {
+      res.status(404).json({ error: 'No user with that ID found.' });
+      return;
+    }
+
+    const userUpdates = {};
+    if (name) { userUpdates.name = name; }
+    if (email) { userUpdates.email = email; }
+    if (role) { userUpdates.role = role; }
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      userUpdates.password = hashedPassword;
+    }
+
+    UserModel.findByIdAndUpdate(
+      id,
+      userUpdates,
+      (err) => {
+        if (err) {
+          console.error(err);
+          res.status(500).json({ message: 'Error updating user.' });
+        } else {
+          res.json({ message: 'User successfully updated.' });
+        }
+      },
+    );
+  });
 };
 
 const deleteUser = (req, res) => {
-  // TODO: Handle no user to delete
   const { id } = req.params;
   if (!id) {
     res.status(400).json({ error: 'User ID required.' });
     return;
   }
-  UserModel.findByIdAndDelete(id, (err) => {
-    if (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error deleting user.' });
-    } else {
-      res.json({ message: 'User successfully deleted.' });
+
+  UserModel.findById(id, (errFindingUser, foundUser) => {
+    if (errFindingUser) {
+      console.error(errFindingUser);
+      res.status(500).json({ message: 'Error searching for user.' });
+      return;
+    } if (!foundUser) {
+      res.status(404).json({ error: 'No user with that ID found.' });
+      return;
     }
+
+    UserModel.findByIdAndDelete(id, (err) => {
+      if (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error deleting user.' });
+        return;
+      }
+
+      res.json({ message: 'User successfully deleted.' });
+    });
   });
 };
 

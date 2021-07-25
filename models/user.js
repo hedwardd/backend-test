@@ -32,4 +32,4 @@ const UserSchema = new Schema({
 
 const UserModel = mongoose.model('User', UserSchema);
 
-module.exports = { UserModel };
+module.exports = { UserModel, ROLE_TYPES };
